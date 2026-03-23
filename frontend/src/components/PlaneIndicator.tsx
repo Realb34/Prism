@@ -22,9 +22,9 @@ export function PlaneIndicator({ activePlane }: Props) {
   useFrame((_, delta) => {
     if (!matRef.current) return
     pulseRef.current = Math.min(pulseRef.current + delta * 2, 1)
-    // Settle from 0.14 → 0.04 over ~1s
+    // Pulse from 0.22 → 0.07 over ~1s, then hold at 0.07
     const t = pulseRef.current
-    matRef.current.opacity = 0.04 + 0.10 * Math.max(0, 1 - t)
+    matRef.current.opacity = 0.07 + 0.15 * Math.max(0, 1 - t)
   })
 
   const geometry = useMemo(() => new THREE.PlaneGeometry(22, 22), [])
@@ -41,7 +41,7 @@ export function PlaneIndicator({ activePlane }: Props) {
         ref={matRef}
         color={color}
         transparent
-        opacity={0.14}
+        opacity={0.22}
         side={THREE.DoubleSide}
         depthWrite={false}
       />

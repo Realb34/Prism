@@ -97,8 +97,10 @@ export function SketchPanel({ state, dispatch, className }: Props) {
     ctx.fillStyle = '#F4F0E8'
     ctx.fillRect(0, 0, W, H)
 
-    // ── Grid ──
-    ctx.strokeStyle = '#E0DCD4'
+    // ── Grid — minor lines every cell, major lines every 5 cells ──
+    const MAJOR = GRID * 5
+    // Minor
+    ctx.strokeStyle = '#D4D0C8'
     ctx.lineWidth   = 0.5
     for (let x = W / 2 % GRID; x <= W; x += GRID) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke()
@@ -106,10 +108,19 @@ export function SketchPanel({ state, dispatch, className }: Props) {
     for (let y = H / 2 % GRID; y <= H; y += GRID) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
     }
+    // Major
+    ctx.strokeStyle = '#B8B4AC'
+    ctx.lineWidth   = 0.75
+    for (let x = W / 2 % MAJOR; x <= W; x += MAJOR) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke()
+    }
+    for (let y = H / 2 % MAJOR; y <= H; y += MAJOR) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
+    }
 
     // ── Plane-tinted center crosshair ──
     const [pr, pg, pb] = hexToRgb(planeColor)
-    ctx.strokeStyle = `rgba(${pr},${pg},${pb},0.18)`
+    ctx.strokeStyle = `rgba(${pr},${pg},${pb},0.30)`
     ctx.lineWidth   = 1
     ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke()
     ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke()

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { Suspense, useEffect, useMemo } from 'react'
-import { useLoader } from '@react-three/fiber'
+import { Suspense, useEffect, useRef, useMemo } from 'react'
+import { useLoader, useThree, useFrame } from '@react-three/fiber'
 import type { AppState, ImportedAsset, ModelState, SketchPlane } from '../types'
 import { getWorldOffset } from '../store'
 import { buildExtrudeGeometry } from '../geometry/extrude'
@@ -21,6 +21,42 @@ const PLANE_ROTATION: Record<SketchPlane, [number, number, number]> = {
   XY: [0, 0, 0],
   XZ: [-Math.PI / 2, 0, 0],
   YZ: [0, Math.PI / 2, 0],
+}
+
+// Camera positions that face each sketch plane while keeping depth cues.
+// XY lives in the Z-forward face → look from +Z.
+// XZ is the horizontal plane → look from above (+Y).
+// YZ is the right-side face → look from +X.
+const PLANE_CAMERA: Record<SketchPlane, THREE.Vector3> = {
+  XY: new THREE.Vector3( 2,  4, 13),
+  XZ: new THREE.Vector3( 2, 13,  3),
+  YZ: new THREE.Vector3(13,  4,  2),
+}
+
+/** Smoothly repositions the camera when the active sketch plane changes.
+ *  Uses useFrame to lerp so OrbitControls keeps its target at the origin. */
+function CameraController({ activePlane }: { activePlane: SketchPlane }) {
+  const { camera, controls } = useThree()
+  const targetPos  = useRef(PLANE_CAMERA[activePlane].clone())
+  const isLerping  = useRef(false)
+
+  useEffect(() => {
+    targetPos.current = PLANE_CAMERA[activePlane].clone()
+    isLerping.current = true
+  }, [activePlane])
+
+  useFrame(() => {
+    if (!isLerping.current) return
+    camera.position.lerp(targetPos.current, 0.07)
+    if (camera.position.distanceTo(targetPos.current) < 0.08) {
+      camera.position.copy(targetPos.current)
+      isLerping.current = false
+    }
+    // Keep OrbitControls in sync so it doesn't snap back
+    if (controls) (controls as unknown as { update: () => void }).update()
+  })
+
+  return null
 }
 
 // ── Per-model mesh ───────────────────────────────────────────
@@ -175,11 +211,14 @@ export function Scene({ state }: Props) {
       <directionalLight position={[8, 10, 6]}   intensity={1.5}  color="#FFFFFF" />
       <directionalLight position={[-4, -2, -5]} intensity={0.25} color="#B8D0FF" />
 
+      {/* ── Camera follows active plane ── */}
+      <CameraController activePlane={state.activePlane} />
+
       {/* ── Active plane indicator ── */}
       <PlaneIndicator activePlane={state.activePlane} />
 
-      {/* ── Grid helper ── */}
-      <gridHelper args={[24, 24, '#1C1A17', '#161410']} />
+      {/* ── Grid helper — floor reference (XZ plane in Three.js world) ── */}
+      <gridHelper args={[24, 24, '#3C3830', '#302C28']} />
 
       {/* ── Axis helper ── */}
       <axesHelper args={[2.5]} />
