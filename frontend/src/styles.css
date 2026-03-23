@@ -1,0 +1,333 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Syne+Mono&display=swap');
+
+/* ── Design tokens ──────────────────────────────────────────── */
+:root {
+  /* Background scale — warm charcoal */
+  --c-base:       #0D0C0A;
+  --c-surface:    #141310;
+  --c-raised:     #1C1A17;
+  --c-hover:      #222018;
+
+  /* Borders */
+  --c-border:     #262420;
+  --c-border-mid: #343028;
+
+  /* Text */
+  --c-txt-1: #EDEAE2;
+  --c-txt-2: #857F75;
+  --c-txt-3: #4C4840;
+
+  /* Accent — warm orange */
+  --c-accent:    #E85820;
+  --c-accent-hi: #FF7340;
+  --c-accent-lo: #1C0D05;
+
+  /* Canvas — drafting paper */
+  --c-paper:      #EDE9E1;
+  --c-paper-grid: #D5D1C8;
+  --c-paper-axis: #B4B0A8;
+
+  /* 3D viewport mesh */
+  --c-mesh:      #4E86D4;
+  --c-mesh-wire: #8DB4F4;
+
+  /* Typography */
+  --font-sans: 'Syne', system-ui, sans-serif;
+  --font-mono: 'Syne Mono', 'Courier New', monospace;
+
+  /* Radii */
+  --r-sm: 3px;
+  --r-md: 5px;
+  --r-lg: 8px;
+}
+
+/* ── Reset ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { width: 100%; height: 100%; overflow: hidden; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--c-base);
+  color: var(--c-txt-1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Range inputs ───────────────────────────────────────────── */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  outline: none;
+  cursor: pointer;
+  /* background set inline for filled-track effect */
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  border: 2.5px solid var(--c-base);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+input[type='range']:hover::-webkit-slider-thumb,
+input[type='range']:focus::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 5px rgba(232, 88, 32, 0.2);
+}
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  border: 2.5px solid var(--c-base);
+  cursor: pointer;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--c-surface); }
+::-webkit-scrollbar-thumb { background: var(--c-border-mid); border-radius: 2px; }
+
+/* ── Keyframes ──────────────────────────────────────────────── */
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Mode toggle ────────────────────────────────────────────── */
+.mode-btn {
+  flex: 1;
+  padding: 8px 4px;
+  background: transparent;
+  color: var(--c-txt-3);
+  border: 1px solid var(--c-border);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.1s, background 0.1s, border-color 0.1s;
+}
+.mode-btn:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.mode-btn:last-child  { border-radius: 0 var(--r-sm) var(--r-sm) 0; border-left: none; }
+.mode-btn:hover:not(.mode-active) { color: var(--c-txt-2); background: var(--c-raised); }
+.mode-active {
+  background: var(--c-accent-lo) !important;
+  color: var(--c-accent) !important;
+  border-color: rgba(232, 88, 32, 0.4) !important;
+}
+
+/* ── Plane tabs ─────────────────────────────────────────────── */
+.plane-tab {
+  padding: 0 16px;
+  height: 100%;
+  background: transparent;
+  color: var(--c-txt-3);
+  border: none;
+  border-right: 1px solid var(--c-border);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: default;
+  transition: color 0.1s, background 0.1s;
+}
+.plane-tab.active {
+  color: var(--c-txt-1);
+  background: var(--c-raised);
+  cursor: pointer;
+}
+.plane-tab.interactive:hover:not(.active) {
+  color: var(--c-txt-2);
+  background: var(--c-hover);
+  cursor: pointer;
+}
+
+/* ── Apex radio options ─────────────────────────────────────── */
+.apex-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 7px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--c-txt-2);
+  transition: background 0.1s, color 0.1s;
+  user-select: none;
+}
+.apex-opt:hover         { background: var(--c-raised); }
+.apex-opt.apex-selected { color: var(--c-txt-1); }
+.apex-opt input[type='radio'] {
+  accent-color: var(--c-accent);
+  width: 12px;
+  height: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── Clear button ───────────────────────────────────────────── */
+.btn-clear {
+  width: 100%;
+  padding: 9px 12px;
+  background: transparent;
+  color: var(--c-txt-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.btn-clear:hover {
+  color: var(--c-accent);
+  border-color: rgba(232, 88, 32, 0.5);
+  background: var(--c-accent-lo);
+}
+
+/* ── Layer panel buttons ─────────────────────────────────────── */
+.layer-add-btn {
+  background: transparent;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  color: var(--c-txt-2);
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  font-family: var(--font-sans);
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+  flex-shrink: 0;
+}
+.layer-add-btn:hover {
+  color: var(--c-accent);
+  border-color: rgba(232, 88, 32, 0.4);
+  background: var(--c-accent-lo);
+}
+
+.layer-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 2px;
+  color: var(--c-txt-3);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  transition: opacity 0.1s, color 0.1s;
+}
+.layer-icon-btn:hover { color: var(--c-txt-1); }
+
+.layer-action-btn {
+  background: transparent;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  color: var(--c-txt-3);
+  width: 26px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  font-family: var(--font-sans);
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+  flex-shrink: 0;
+}
+.layer-action-btn:hover:not(:disabled) {
+  color: var(--c-txt-1);
+  border-color: var(--c-border-mid);
+  background: var(--c-raised);
+}
+.layer-action-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.layer-delete-btn:hover:not(:disabled) {
+  color: var(--c-accent);
+  border-color: rgba(232, 88, 32, 0.4);
+  background: var(--c-accent-lo);
+}
+
+/* ── Mobile tab bar ─────────────────────────────────────────── */
+.mobile-tab-bar {
+  display: none;  /* hidden on desktop */
+  height: 52px;
+  flex-shrink: 0;
+  background: var(--c-surface);
+  border-top: 1px solid var(--c-border);
+  align-items: stretch;
+}
+
+.mobile-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--c-txt-3);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--c-border);
+}
+.mobile-tab:last-child { border-right: none; }
+.mobile-tab:hover      { color: var(--c-txt-2); background: var(--c-raised); }
+.mobile-tab.active     { color: var(--c-accent); background: var(--c-accent-lo); }
+
+/* ── Responsive layout ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  .mobile-tab-bar { display: flex; }
+
+  /* All panels hidden by default on mobile */
+  .panel-layers,
+  .panel-sketch,
+  .panel-viewport,
+  .panel-controls {
+    display: none !important;
+    width: 100% !important;
+    flex: 1 !important;
+    border: none !important;
+  }
+
+  /* Only the active panel is shown */
+  .panel-active {
+    display: flex !important;
+  }
+
+  /* Sketch panel canvas centered */
+  .panel-sketch { flex-direction: column !important; }
+
+  /* Controls panel full width */
+  .panel-controls { width: 100% !important; }
+}
