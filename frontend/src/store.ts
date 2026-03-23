@@ -1,19 +1,22 @@
-import type { AppState, ModelId, ModelState, DisplayEntry } from './types'
+import type { AppState, ImportedAsset, ModelId, ModelState, DisplayEntry, SketchPlane } from './types'
 import { makeModel } from './types'
 
 // ── Action union ─────────────────────────────────────────────
 export type StoreAction =
-  | { type: 'ADD_MODEL';       name?: string }
-  | { type: 'REMOVE_MODEL';    id: ModelId }
-  | { type: 'PATCH_MODEL';     id: ModelId; patch: Partial<ModelState> }
-  | { type: 'SET_ACTIVE';      id: ModelId | null }
-  | { type: 'REORDER_MODELS';  fromIndex: number; toIndex: number }
-  | { type: 'NEST_MODEL';      childId: ModelId; parentId: ModelId | null }
-  | { type: 'MERGE_INTO';      sourceId: ModelId; targetId: ModelId }
-  | { type: 'DUPLICATE_MODEL'; id: ModelId }
-  | { type: 'CLEAR_MODEL';     id: ModelId }
-  | { type: 'SET_PLANE';       plane: AppState['activePlane'] }
-  | { type: 'SET_PANEL';       panel: AppState['activePanel'] }
+  | { type: 'ADD_MODEL';          name?: string }
+  | { type: 'REMOVE_MODEL';       id: ModelId }
+  | { type: 'PATCH_MODEL';        id: ModelId; patch: Partial<ModelState> }
+  | { type: 'SET_ACTIVE';         id: ModelId | null }
+  | { type: 'REORDER_MODELS';     fromIndex: number; toIndex: number }
+  | { type: 'NEST_MODEL';         childId: ModelId; parentId: ModelId | null }
+  | { type: 'MERGE_INTO';         sourceId: ModelId; targetId: ModelId }
+  | { type: 'DUPLICATE_MODEL';    id: ModelId }
+  | { type: 'CLEAR_MODEL';        id: ModelId }
+  | { type: 'SET_PLANE';          plane: AppState['activePlane'] }
+  | { type: 'SET_PANEL';          panel: AppState['activePanel'] }
+  | { type: 'IMPORT_ASSET';       asset: ImportedAsset }
+  | { type: 'REMOVE_ASSET';       id: string }
+  | { type: 'PATCH_ASSET';        id: string; patch: Partial<ImportedAsset> }
 
 // ── Root reducer ─────────────────────────────────────────────
 export function reducer(state: AppState, action: StoreAction): AppState {
@@ -29,13 +32,25 @@ export function reducer(state: AppState, action: StoreAction): AppState {
     case 'CLEAR_MODEL':     return clearModel(state, action.id)
     case 'SET_PLANE':       return { ...state, activePlane: action.plane }
     case 'SET_PANEL':       return { ...state, activePanel: action.panel }
+    case 'IMPORT_ASSET':    return { ...state, importedAssets: [...state.importedAssets, action.asset] }
+    case 'REMOVE_ASSET':    return { ...state, importedAssets: state.importedAssets.filter(a => a.id !== action.id) }
+    case 'PATCH_ASSET':     return {
+      ...state,
+      importedAssets: state.importedAssets.map(a =>
+        a.id === action.id ? { ...a, ...action.patch } : a
+      ),
+    }
   }
 }
 
 // ── Pure state functions (all exported for testing) ──────────
 
 export function addModel(state: AppState, name?: string): AppState {
-  const m = makeModel(name ?? `Model ${state.models.length + 1}`, state.models.length)
+  const m = makeModel(
+    name ?? `Model ${state.models.length + 1}`,
+    state.models.length,
+    { plane: state.activePlane },
+  )
   return { ...state, models: [...state.models, m], activeModelId: m.id, activePanel: 'sketch' }
 }
 
@@ -55,7 +70,7 @@ export function removeModel(state: AppState, id: ModelId): AppState {
     .map(m => m.parentId && toRemove.has(m.parentId) ? { ...m, parentId: deletedParent } : m)
 
   if (remaining.length === 0) {
-    const fresh = makeModel('Model 1', 0)
+    const fresh = makeModel('Model 1', 0, { plane: state.activePlane })
     return { ...state, models: [fresh], activeModelId: fresh.id }
   }
 
@@ -113,8 +128,8 @@ export function mergeInto(state: AppState, sourceId: ModelId, targetId: ModelId)
   if (!source || !target) return state
 
   const afterPatch = patchModel(state, targetId, {
-    vertices:  [...target.vertices, ...source.vertices],
-    isClosed:  false,  // merged polygon needs manual re-closing
+    vertices: [...target.vertices, ...source.vertices],
+    isClosed: false,  // merged polygon needs manual re-closing
   })
   return removeModel(afterPatch, sourceId)
 }
@@ -171,4 +186,9 @@ export function getWorldOffset(state: AppState, id: ModelId): { x: number; y: nu
 export function getActiveModel(state: AppState): ModelState | null {
   if (!state.activeModelId) return null
   return state.models.find(m => m.id === state.activeModelId) ?? null
+}
+
+/** Returns models that share the given sketch plane. */
+export function getSamePlaneModels(state: AppState, plane: SketchPlane): ModelState[] {
+  return state.models.filter(m => (m.plane ?? 'XY') === plane)
 }

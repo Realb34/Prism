@@ -1,8 +1,9 @@
 import { useRef, useEffect } from 'react'
 import type { AppState, Vertex2D, ModelState } from '../types'
 import type { StoreAction } from '../store'
-import { getActiveModel, getWorldOffset } from '../store'
+import { getActiveModel, getWorldOffset, getSamePlaneModels } from '../store'
 import { useCanvas } from '../hooks/useCanvas'
+import { PLANE_COLORS, PLANE_AXES } from '../types'
 
 const GRID        = 20
 const CANVAS_SIZE = 600
@@ -11,9 +12,8 @@ function toCanvas(v: Vertex2D, size: number): [number, number] {
   return [v.x + size / 2, size / 2 - v.y]
 }
 
-// Convert world-unit offset (from getWorldOffset) to canvas pixel offset
 function worldOffsetToPx(ox: number, oy: number): [number, number] {
-  return [ox * GRID, -oy * GRID]   // Y is inverted in canvas space
+  return [ox * GRID, -oy * GRID]
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -38,7 +38,6 @@ function drawGhost(
 
   const [r, g, b] = hexToRgb(model.color)
 
-  // Subtle fill
   if (model.isClosed && pts.length >= 3) {
     ctx.beginPath()
     ctx.moveTo(pts[0][0], pts[0][1])
@@ -48,7 +47,6 @@ function drawGhost(
     ctx.fill()
   }
 
-  // Stroke
   ctx.strokeStyle = `rgba(${r},${g},${b},0.30)`
   ctx.lineWidth = 1
   ctx.setLineDash([4, 4])
@@ -59,7 +57,6 @@ function drawGhost(
   ctx.stroke()
   ctx.setLineDash([])
 
-  // Name label at centroid
   if (pts.length >= 3) {
     const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length
     const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length
@@ -82,7 +79,9 @@ export function SketchPanel({ state, dispatch, className }: Props) {
 
   useCanvas({ canvasRef, activeModel, dispatch })
 
-  // Redraw canvas whenever relevant state changes
+  const planeColor = PLANE_COLORS[state.activePlane]
+  const [axisH, axisV] = PLANE_AXES[state.activePlane]
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -92,7 +91,7 @@ export function SketchPanel({ state, dispatch, className }: Props) {
     const W = canvas.width
     const H = canvas.height
 
-    // ── Background — warm drafting paper ──
+    // ── Background ──
     ctx.fillStyle = '#EDE9E1'
     ctx.fillRect(0, 0, W, H)
 
@@ -106,18 +105,19 @@ export function SketchPanel({ state, dispatch, className }: Props) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
     }
 
-    // ── Axes ──
-    ctx.strokeStyle = '#B4B0A8'
+    // ── Plane-tinted center crosshair ──
+    const [pr, pg, pb] = hexToRgb(planeColor)
+    ctx.strokeStyle = `rgba(${pr},${pg},${pb},0.18)`
     ctx.lineWidth   = 1
     ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke()
     ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke()
 
     // ── Axis labels ──
-    ctx.fillStyle = '#C0BCB4'
+    ctx.fillStyle = `rgba(${pr},${pg},${pb},0.5)`
     ctx.font      = "9px 'Syne Mono', monospace"
     ctx.textAlign = 'left'
-    ctx.fillText('X', W - 14, H / 2 - 5)
-    ctx.fillText('Y', W / 2 + 5, 12)
+    ctx.fillText(axisH, W - 14, H / 2 - 5)
+    ctx.fillText(axisV, W / 2 + 5, 12)
 
     // ── Vignette ──
     const vg = ctx.createRadialGradient(W / 2, H / 2, W * 0.28, W / 2, H / 2, W * 0.72)
@@ -126,8 +126,9 @@ export function SketchPanel({ state, dispatch, className }: Props) {
     ctx.fillStyle = vg
     ctx.fillRect(0, 0, W, H)
 
-    // ── Ghost outlines for other visible models ──
-    const otherModels = state.models.filter(
+    // ── Ghost outlines — same-plane models only ──
+    const samePlaneModels = getSamePlaneModels(state, state.activePlane)
+    const otherModels = samePlaneModels.filter(
       m => m.id !== state.activeModelId && m.visible && m.vertices.length >= 2
     )
     for (const m of otherModels) {
@@ -168,23 +169,21 @@ export function SketchPanel({ state, dispatch, className }: Props) {
 
     const pts = vertices.map(v => toCanvas(v, W))
 
-    // Polygon fill (closed only)
     if (isClosed && pts.length >= 3) {
       ctx.beginPath()
       ctx.moveTo(pts[0][0], pts[0][1])
       for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1])
       ctx.closePath()
-      ctx.fillStyle = 'rgba(232, 88, 32, 0.07)'
+      ctx.fillStyle = `rgba(${pr},${pg},${pb},0.07)`
       ctx.fill()
     }
 
-    // Edges
     ctx.lineWidth = 1.5
     if (isClosed) {
       ctx.strokeStyle = '#2A2620'
       ctx.setLineDash([])
     } else {
-      ctx.strokeStyle = '#E85820'
+      ctx.strokeStyle = planeColor
       ctx.setLineDash([5, 4])
     }
     ctx.beginPath()
@@ -194,19 +193,16 @@ export function SketchPanel({ state, dispatch, className }: Props) {
     ctx.stroke()
     ctx.setLineDash([])
 
-    // Locked overlay indicator
     if (activeModel?.locked) {
       ctx.fillStyle = 'rgba(200,160,80,0.08)'
       ctx.fillRect(0, 0, W, H)
     }
 
-    // Vertices
     pts.forEach(([cx, cy], i) => {
       const isFirst  = i === 0
       const canClose = isFirst && !isClosed && vertices.length >= 3
 
       if (canClose) {
-        // Crosshair close-affordance
         ctx.strokeStyle = 'rgba(42, 158, 106, 0.32)'
         ctx.lineWidth   = 0.75
         ctx.beginPath(); ctx.moveTo(cx - 15, cy); ctx.lineTo(cx + 15, cy); ctx.stroke()
@@ -219,18 +215,18 @@ export function SketchPanel({ state, dispatch, className }: Props) {
         ctx.stroke()
       } else if (isFirst && isClosed) {
         ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2)
-        ctx.strokeStyle = 'rgba(232, 88, 32, 0.25)'
+        ctx.strokeStyle = `rgba(${pr},${pg},${pb},0.25)`
         ctx.lineWidth   = 1.5
         ctx.stroke()
         ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2)
-        ctx.fillStyle   = '#E85820'
+        ctx.fillStyle   = planeColor
         ctx.fill()
         ctx.strokeStyle = '#EDE9E1'
         ctx.lineWidth   = 1.5
         ctx.stroke()
       } else {
         ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2)
-        ctx.fillStyle   = '#E85820'
+        ctx.fillStyle   = planeColor
         ctx.fill()
         ctx.strokeStyle = '#EDE9E1'
         ctx.lineWidth   = 1.5
@@ -243,7 +239,6 @@ export function SketchPanel({ state, dispatch, className }: Props) {
       ctx.fillText(String(i), cx + 9, cy - 5)
     })
 
-    // Status hint
     ctx.fillStyle = '#9A9590'
     ctx.font      = "11px 'Syne', system-ui"
     ctx.textAlign = 'left'
@@ -257,7 +252,7 @@ export function SketchPanel({ state, dispatch, className }: Props) {
     } else if (vertices.length > 0) {
       ctx.fillText(`${vertices.length} pt${vertices.length > 1 ? 's' : ''} — need ${3 - vertices.length} more`, 12, H - 13)
     }
-  }, [state, activeModel])   // redraws when any model changes or active model changes
+  }, [state, activeModel, planeColor, axisH, axisV])
 
   return (
     <div
@@ -287,11 +282,14 @@ export function SketchPanel({ state, dispatch, className }: Props) {
             className={[
               'plane-tab',
               state.activePlane === plane ? 'active' : '',
-              plane === 'XY' ? 'interactive' : '',
+              'interactive',
             ].join(' ')}
-            onClick={() => plane === 'XY' && dispatch({ type: 'SET_PLANE', plane })}
-            disabled={plane !== 'XY'}
+            onClick={() => dispatch({ type: 'SET_PLANE', plane })}
             aria-pressed={state.activePlane === plane}
+            style={state.activePlane === plane ? {
+              color: PLANE_COLORS[plane],
+              background: 'var(--c-raised)',
+            } : {}}
           >
             {plane}
           </button>
@@ -301,6 +299,16 @@ export function SketchPanel({ state, dispatch, className }: Props) {
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: activeModel.color, flexShrink: 0 }} />
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--c-txt-2)', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {activeModel.name}
+            </span>
+            {/* Plane badge */}
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: '8px', fontWeight: 700,
+              padding: '2px 5px', borderRadius: '2px',
+              background: `${PLANE_COLORS[activeModel.plane ?? 'XY']}22`,
+              color: PLANE_COLORS[activeModel.plane ?? 'XY'],
+              letterSpacing: '0.05em',
+            }}>
+              {activeModel.plane ?? 'XY'}
             </span>
           </div>
         )}
@@ -317,7 +325,7 @@ export function SketchPanel({ state, dispatch, className }: Props) {
             maxWidth: '100%',
             maxHeight: '100%',
             display: 'block',
-            boxShadow: '0 2px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3)',
+            boxShadow: `0 2px 16px rgba(0,0,0,0.5), 0 0 0 2px ${planeColor}44`,
           }}
           aria-label="Drawing canvas — click to place vertices"
         />

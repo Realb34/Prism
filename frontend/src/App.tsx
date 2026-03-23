@@ -1,13 +1,14 @@
-import { useReducer, useEffect, useRef } from 'react'
+import { useReducer, useEffect, useRef, useState } from 'react'
 import { reducer, getActiveModel } from './store'
 import { makeDefaultAppState } from './types'
 import { postActiveShape } from './api'
-import { SketchPanel }    from './components/SketchPanel'
-import { ViewportPanel }  from './components/ViewportPanel'
-import { Controls }       from './components/Controls'
-import { LayersPanel }    from './components/LayersPanel'
-import type { AppState }  from './types'
-import type { StoreAction } from './store'
+import { SketchPanel }        from './components/SketchPanel'
+import { ViewportPanel }      from './components/ViewportPanel'
+import { Controls }           from './components/Controls'
+import { LayersPanel }        from './components/LayersPanel'
+import { ImportExportModal }  from './components/ImportExportModal'
+import type { AppState }      from './types'
+import type { StoreAction }   from './store'
 import React from 'react'
 
 // ── Header status pills ──────────────────────────────────────
@@ -15,12 +16,8 @@ import React from 'react'
 function Pill({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--c-txt-3)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-        {label}
-      </span>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: accent ? 'var(--c-accent)' : 'var(--c-txt-1)', letterSpacing: '0.02em' }}>
-        {value}
-      </span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--c-txt-3)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: accent ? 'var(--c-accent)' : 'var(--c-txt-1)', letterSpacing: '0.02em' }}>{value}</span>
     </div>
   )
 }
@@ -32,10 +29,10 @@ function Divider() {
 // ── Mobile bottom tab bar ────────────────────────────────────
 
 const TAB_PANELS = [
-  { id: 'layers' as const,     label: 'Layers' },
-  { id: 'sketch' as const,     label: 'Sketch' },
-  { id: 'viewport' as const,   label: '3D' },
-  { id: 'parameters' as const, label: 'Params' },
+  { id: 'layers' as const,     label: 'Layers',  icon: '◫' },
+  { id: 'sketch' as const,     label: 'Sketch',  icon: '◻' },
+  { id: 'viewport' as const,   label: '3D',      icon: '◈' },
+  { id: 'parameters' as const, label: 'Shape',   icon: '◼' },
 ]
 
 function MobileTabBar({ state, dispatch }: { state: AppState; dispatch: React.Dispatch<StoreAction> }) {
@@ -48,7 +45,8 @@ function MobileTabBar({ state, dispatch }: { state: AppState; dispatch: React.Di
           aria-pressed={state.activePanel === tab.id}
           className={`mobile-tab${state.activePanel === tab.id ? ' active' : ''}`}
         >
-          {tab.label}
+          <span className="mobile-tab-icon">{tab.icon}</span>
+          <span className="mobile-tab-label">{tab.label}</span>
         </button>
       ))}
     </nav>
@@ -58,9 +56,10 @@ function MobileTabBar({ state, dispatch }: { state: AppState; dispatch: React.Di
 // ── Root component ───────────────────────────────────────────
 
 export default function App() {
-  const [state, dispatch] = useReducer(reducer, undefined, makeDefaultAppState)
+  const [state, dispatch]    = useReducer(reducer, undefined, makeDefaultAppState)
+  const [ioOpen, setIoOpen]  = useState(false)
 
-  // Debounced API sync — fires when active model has a closed, valid polygon
+  // Debounced API sync
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     const active = getActiveModel(state)
@@ -76,15 +75,10 @@ export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh' }}>
 
-      {/* ── Header bar ── */}
+      {/* ── Header ── */}
       <header style={{
-        height: '44px',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        paddingRight: '18px',
-        background: 'var(--c-surface)',
-        borderBottom: '1px solid var(--c-border)',
+        height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center',
+        paddingRight: '12px', background: 'var(--c-surface)', borderBottom: '1px solid var(--c-border)',
       }}>
         {/* Logo */}
         <div style={{
@@ -102,14 +96,14 @@ export default function App() {
         </div>
 
         {/* Status pills */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '0 18px', height: '100%', gap: '0', overflow: 'hidden' }}>
+        <div className="header-pills" style={{ display: 'flex', alignItems: 'center', padding: '0 18px', height: '100%', overflow: 'hidden' }}>
           <Pill label="Models" value={String(state.models.length)} />
           {activeModel && (
             <>
               <Divider />
               <Pill label="Active" value={activeModel.name} />
               <Divider />
-              <Pill label="Verts" value={String(activeModel.vertices.length)} />
+              <Pill label="Plane" value={activeModel.plane ?? 'XY'} />
               {isLive && (
                 <>
                   <Divider />
@@ -122,9 +116,20 @@ export default function App() {
 
         <div style={{ flex: 1 }} />
 
+        {/* Import / Export button */}
+        <button
+          onClick={() => setIoOpen(true)}
+          className="header-io-btn"
+          aria-label="Import or export models"
+          title="Import / Export"
+        >
+          <span>⇅</span>
+          <span className="header-io-label">I/O</span>
+        </button>
+
         {/* Live indicator */}
         {isLive && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', animation: 'fade-in 0.25s ease' }} aria-label="Shape is live">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', animation: 'fade-in 0.25s ease', marginLeft: '12px' }} aria-label="Shape is live">
             <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--c-accent)', animation: 'pulse-live 2.5s ease-in-out infinite' }} />
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--c-txt-3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               Live
@@ -133,7 +138,7 @@ export default function App() {
         )}
       </header>
 
-      {/* ── Main panels (desktop) ── */}
+      {/* ── Main panels ── */}
       <div className="main-panels" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <LayersPanel
           state={state}
@@ -158,6 +163,14 @@ export default function App() {
 
       {/* ── Mobile tab bar ── */}
       <MobileTabBar state={state} dispatch={dispatch} />
+
+      {/* ── Import/Export modal ── */}
+      <ImportExportModal
+        open={ioOpen}
+        onClose={() => setIoOpen(false)}
+        state={state}
+        dispatch={dispatch}
+      />
     </div>
   )
 }
