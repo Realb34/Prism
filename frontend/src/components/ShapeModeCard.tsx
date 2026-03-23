@@ -1,5 +1,5 @@
 interface Props {
-  mode:     'extrude' | 'apex'
+  mode:     'extrude' | 'apex' | 'organic'
   isActive: boolean
   onClick:  () => void
 }
@@ -39,6 +39,24 @@ function ApexIcon() {
   )
 }
 
+function OrganicIcon() {
+  return (
+    <svg viewBox="0 0 44 38" fill="none" aria-hidden="true">
+      {/* Outer silhouette ring */}
+      <ellipse cx="22" cy="20" rx="16" ry="10" stroke="currentColor" strokeWidth="1.5" opacity="0.75" />
+      {/* Mid contour ring */}
+      <ellipse cx="22" cy="16" rx="11" ry="7" stroke="currentColor" strokeWidth="1.2" opacity="0.5" />
+      {/* Inner ring */}
+      <ellipse cx="22" cy="12" rx="6" ry="4" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+      {/* Cross-section lines (lofting guides) */}
+      <line x1="6" y1="20" x2="38" y2="20" stroke="currentColor" strokeWidth="0.75" opacity="0.2" strokeDasharray="3 2" />
+      <line x1="22" y1="10" x2="22" y2="30" stroke="currentColor" strokeWidth="0.75" opacity="0.2" strokeDasharray="3 2" />
+    </svg>
+  )
+}
+
+const LABELS = { extrude: 'Extrude', apex: 'Apex', organic: 'Organic' }
+
 export function ShapeModeCard({ mode, isActive, onClick }: Props) {
   return (
     <button
@@ -48,10 +66,10 @@ export function ShapeModeCard({ mode, isActive, onClick }: Props) {
       type="button"
     >
       <div className="shape-mode-card-icon">
-        {mode === 'extrude' ? <ExtrudeIcon /> : <ApexIcon />}
+        {mode === 'extrude' ? <ExtrudeIcon /> : mode === 'apex' ? <ApexIcon /> : <OrganicIcon />}
       </div>
       <span className="shape-mode-card-label">
-        {mode === 'extrude' ? 'Extrude' : 'Apex'}
+        {LABELS[mode]}
       </span>
     </button>
   )

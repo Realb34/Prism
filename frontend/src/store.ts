@@ -1,5 +1,6 @@
-import type { AppState, ImportedAsset, ModelId, ModelState, DisplayEntry, SketchPlane } from './types'
+import type { AppState, ContourStroke, ImportedAsset, MirrorAxis, ModelId, ModelState, DisplayEntry, PrimitiveShape, ActiveTool, SketchPlane } from './types'
 import { makeModel } from './types'
+import { laplacianSmooth } from './geometry/smooth'
 
 // ── Action union ─────────────────────────────────────────────
 export type StoreAction =
@@ -17,6 +18,13 @@ export type StoreAction =
   | { type: 'IMPORT_ASSET';       asset: ImportedAsset }
   | { type: 'REMOVE_ASSET';       id: string }
   | { type: 'PATCH_ASSET';        id: string; patch: Partial<ImportedAsset> }
+  | { type: 'SET_TOOL';           tool: ActiveTool }
+  | { type: 'SET_PRIMITIVE';      shape: PrimitiveShape }
+  | { type: 'TOGGLE_SNAP' }
+  | { type: 'SET_MIRROR';         id: ModelId; axis: MirrorAxis }
+  | { type: 'ADD_CONTOUR';        id: ModelId; stroke: ContourStroke }
+  | { type: 'CLEAR_CONTOURS';     id: ModelId }
+  | { type: 'SMOOTH_MODEL';       id: ModelId; iterations?: number }
 
 // ── Root reducer ─────────────────────────────────────────────
 export function reducer(state: AppState, action: StoreAction): AppState {
@@ -39,6 +47,21 @@ export function reducer(state: AppState, action: StoreAction): AppState {
       importedAssets: state.importedAssets.map(a =>
         a.id === action.id ? { ...a, ...action.patch } : a
       ),
+    }
+    case 'SET_TOOL':        return { ...state, activeTool: action.tool }
+    case 'SET_PRIMITIVE':   return { ...state, primitiveShape: action.shape }
+    case 'TOGGLE_SNAP':     return { ...state, snapEnabled: !state.snapEnabled }
+    case 'SET_MIRROR':      return patchModel(state, action.id, { mirrorAxis: action.axis })
+    case 'ADD_CONTOUR': {
+      const m = state.models.find(m => m.id === action.id)
+      if (!m) return state
+      return patchModel(state, action.id, { contourStrokes: [...m.contourStrokes, action.stroke] })
+    }
+    case 'CLEAR_CONTOURS':  return patchModel(state, action.id, { contourStrokes: [] })
+    case 'SMOOTH_MODEL': {
+      const m = state.models.find(m => m.id === action.id)
+      if (!m || m.vertices.length < 3) return state
+      return patchModel(state, action.id, { vertices: laplacianSmooth(m.vertices, action.iterations ?? 2) })
     }
   }
 }

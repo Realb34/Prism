@@ -1,9 +1,20 @@
 // ── Primitives ───────────────────────────────────────────────
 export type Vertex2D   = { x: number; y: number }
-export type ShapeMode  = 'extrude' | 'apex'
+export type ShapeMode  = 'extrude' | 'apex' | 'organic'
 export type ApexAnchor = 'centroid' | { vertexIndex: number }
 export type ModelId    = string
 export type SketchPlane = 'XY' | 'XZ' | 'YZ'
+
+// ── Sprint 3 types ───────────────────────────────────────────
+export type ActiveTool    = 'polygon' | 'freehand' | 'shapes' | 'contour'
+export type MirrorAxis    = 'none' | 'x' | 'y' | 'xy'
+export type PrimitiveShape = 'rect' | 'circle' | 'triangle' | 'hex' | 'pentagon' | 'star'
+
+export interface ContourStroke {
+  id:     string
+  plane:  SketchPlane
+  points: Vertex2D[]
+}
 
 // ── Per-model world-space translation ────────────────────────
 export interface ModelOffset {
@@ -14,21 +25,23 @@ export interface ModelOffset {
 
 // ── Full model state ─────────────────────────────────────────
 export interface ModelState {
-  id:         ModelId
-  name:       string
-  vertices:   Vertex2D[]
-  isClosed:   boolean
-  shapeMode:  ShapeMode
-  depth:      number      // extrude depth
-  height:     number      // apex height
-  apexAnchor: ApexAnchor
-  visible:    boolean
-  locked:     boolean
-  color:      string      // hex, e.g. "#4E86D4"
-  opacity:    number      // 0–1
-  parentId:   ModelId | null
-  offset:     ModelOffset
-  plane:      SketchPlane // which plane this model was drawn on
+  id:             ModelId
+  name:           string
+  vertices:       Vertex2D[]
+  isClosed:       boolean
+  shapeMode:      ShapeMode
+  depth:          number      // extrude depth
+  height:         number      // apex height
+  apexAnchor:     ApexAnchor
+  visible:        boolean
+  locked:         boolean
+  color:          string      // hex, e.g. "#4E86D4"
+  opacity:        number      // 0–1
+  parentId:       ModelId | null
+  offset:         ModelOffset
+  plane:          SketchPlane // which plane this model was drawn on
+  mirrorAxis:     MirrorAxis  // mirror geometry across axis
+  contourStrokes: ContourStroke[] // multi-plane contour strokes for organic mode
 }
 
 // ── Imported 3D asset ────────────────────────────────────────
@@ -53,6 +66,9 @@ export interface AppState {
   activePlane:    SketchPlane
   activePanel:    ActivePanel
   importedAssets: ImportedAsset[]
+  activeTool:     ActiveTool
+  primitiveShape: PrimitiveShape
+  snapEnabled:    boolean
 }
 
 // ── Computed display entry (derived, never stored) ───────────
@@ -94,21 +110,23 @@ export function makeModel(
   overrides: Partial<Omit<ModelState, 'id'>> = {},
 ): ModelState {
   return {
-    id:         crypto.randomUUID(),
+    id:             crypto.randomUUID(),
     name,
-    vertices:   [],
-    isClosed:   false,
-    shapeMode:  'extrude',
-    depth:      3,
-    height:     4,
-    apexAnchor: 'centroid',
-    visible:    true,
-    locked:     false,
-    color:      MODEL_COLORS[index % MODEL_COLORS.length],
-    opacity:    1,
-    parentId:   null,
-    offset:     { x: 0, y: 0, z: 0 },
-    plane:      'XY',
+    vertices:       [],
+    isClosed:       false,
+    shapeMode:      'extrude',
+    depth:          3,
+    height:         4,
+    apexAnchor:     'centroid',
+    visible:        true,
+    locked:         false,
+    color:          MODEL_COLORS[index % MODEL_COLORS.length],
+    opacity:        1,
+    parentId:       null,
+    offset:         { x: 0, y: 0, z: 0 },
+    plane:          'XY',
+    mirrorAxis:     'none',
+    contourStrokes: [],
     ...overrides,
   }
 }
@@ -121,5 +139,8 @@ export function makeDefaultAppState(): AppState {
     activePlane:    'XY',
     activePanel:    'sketch',
     importedAssets: [],
+    activeTool:     'polygon',
+    primitiveShape: 'rect',
+    snapEnabled:    true,
   }
 }

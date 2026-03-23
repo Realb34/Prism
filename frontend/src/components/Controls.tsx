@@ -1,4 +1,4 @@
-import type { ApexAnchor, AppState } from '../types'
+import type { ApexAnchor, AppState, MirrorAxis } from '../types'
 import type { StoreAction } from '../store'
 import { getActiveModel } from '../store'
 import { AccordionSection } from './AccordionSection'
@@ -100,7 +100,7 @@ export function Controls({ state, dispatch, className }: Props) {
         <>
           {/* ── Shape mode ── */}
           <AccordionSection title="Form" icon="◈" defaultOpen>
-            <div className="mode-card-row">
+            <div className="mode-card-row" style={{ flexWrap: 'wrap' }}>
               <ShapeModeCard
                 mode="extrude"
                 isActive={activeModel.shapeMode === 'extrude'}
@@ -111,9 +111,14 @@ export function Controls({ state, dispatch, className }: Props) {
                 isActive={activeModel.shapeMode === 'apex'}
                 onClick={() => dispatch({ type: 'PATCH_MODEL', id: activeModel.id, patch: { shapeMode: 'apex' } })}
               />
+              <ShapeModeCard
+                mode="organic"
+                isActive={activeModel.shapeMode === 'organic'}
+                onClick={() => dispatch({ type: 'PATCH_MODEL', id: activeModel.id, patch: { shapeMode: 'organic' } })}
+              />
             </div>
 
-            {activeModel.shapeMode === 'extrude' ? (
+            {activeModel.shapeMode === 'extrude' && (
               <SliderRow
                 label="Depth"
                 value={activeModel.depth}
@@ -122,7 +127,8 @@ export function Controls({ state, dispatch, className }: Props) {
                 onChange={v => dispatch({ type: 'PATCH_MODEL', id: activeModel.id, patch: { depth: v } })}
                 ariaLabel={`Extrusion depth: ${activeModel.depth.toFixed(1)}`}
               />
-            ) : (
+            )}
+            {activeModel.shapeMode === 'apex' && (
               <SliderRow
                 label="Height"
                 value={activeModel.height}
@@ -131,6 +137,37 @@ export function Controls({ state, dispatch, className }: Props) {
                 onChange={v => dispatch({ type: 'PATCH_MODEL', id: activeModel.id, patch: { height: v } })}
                 ariaLabel={`Apex height: ${activeModel.height.toFixed(1)}`}
               />
+            )}
+            {activeModel.shapeMode === 'organic' && (
+              <div className="info-grid" style={{ marginTop: 0 }}>
+                <div className="info-row">
+                  <span className="info-label">Contours</span>
+                  <span className="info-value">{activeModel.contourStrokes.length}</span>
+                </div>
+                {activeModel.contourStrokes.length > 0 && (
+                  <div className="info-row">
+                    <span className="info-label">Planes</span>
+                    <span className="info-value">
+                      {[...new Set(activeModel.contourStrokes.map(c => c.plane))].join(', ')}
+                    </span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                  <button
+                    className="btn-clear"
+                    style={{ flex: 1 }}
+                    disabled={activeModel.contourStrokes.length === 0}
+                    onClick={() => dispatch({ type: 'CLEAR_CONTOURS', id: activeModel.id })}
+                  >
+                    Clear contours
+                  </button>
+                </div>
+                {activeModel.contourStrokes.length === 0 && (
+                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: 'var(--c-txt-3)', lineHeight: 1.6, marginTop: '8px', fontStyle: 'italic' }}>
+                    Switch to Contour tool and draw on XZ + YZ planes to sculpt a form.
+                  </p>
+                )}
+              </div>
             )}
           </AccordionSection>
 
@@ -159,6 +196,55 @@ export function Controls({ state, dispatch, className }: Props) {
                   </span>
                 )}
               </div>
+            </AccordionSection>
+          )}
+
+          {/* ── Mirror ── */}
+          <AccordionSection title="Mirror" icon="⊟" defaultOpen={false}>
+            {(() => {
+              const axes: { axis: MirrorAxis; label: string; sym: string }[] = [
+                { axis: 'none', label: 'None', sym: '⊘' },
+                { axis: 'x',    label: 'X axis', sym: '↔' },
+                { axis: 'y',    label: 'Y axis', sym: '↕' },
+                { axis: 'xy',   label: 'Both',   sym: '⊞' },
+              ]
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                  {axes.map(({ axis, label, sym }) => {
+                    const isActive = (activeModel.mirrorAxis ?? 'none') === axis
+                    return (
+                      <button
+                        key={axis}
+                        className={`shape-mode-card${isActive ? ' active' : ''}`}
+                        style={{ padding: '8px 6px', gap: '4px', flexDirection: 'row', justifyContent: 'center' }}
+                        onClick={() => dispatch({ type: 'SET_MIRROR', id: activeModel.id, axis })}
+                        aria-pressed={isActive}
+                      >
+                        <span style={{ fontSize: '14px' }}>{sym}</span>
+                        <span style={{ fontSize: '9px', fontFamily: 'var(--font-sans)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                          {label}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+          </AccordionSection>
+
+          {/* ── Smooth ── */}
+          {activeModel.vertices.length >= 3 && activeModel.shapeMode !== 'organic' && (
+            <AccordionSection title="Smooth" icon="∿" defaultOpen={false}>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: 'var(--c-txt-3)', lineHeight: 1.6, marginBottom: '10px' }}>
+                Laplacian relax moves each vertex toward the average of its neighbours, rounding sharp corners.
+              </p>
+              <button
+                className="btn-clear"
+                style={{ width: '100%' }}
+                onClick={() => dispatch({ type: 'SMOOTH_MODEL', id: activeModel.id })}
+              >
+                Apply smooth
+              </button>
             </AccordionSection>
           )}
 
@@ -200,6 +286,11 @@ export function Controls({ state, dispatch, className }: Props) {
                 { label: 'Status',   value: activeModel.isClosed ? 'Closed' : 'Open', accent: activeModel.isClosed },
                 { label: 'Plane',    value: activeModel.plane ?? 'XY' },
                 { label: 'Mode',     value: activeModel.shapeMode },
+                { label: 'Mirror',   value: activeModel.mirrorAxis ?? 'none' },
+                ...(activeModel.shapeMode === 'organic'
+                  ? [{ label: 'Contours', value: String(activeModel.contourStrokes.length) }]
+                  : []
+                ),
               ].map(({ label, value, accent }) => (
                 <div key={label} className="info-row">
                   <span className="info-label">{label}</span>

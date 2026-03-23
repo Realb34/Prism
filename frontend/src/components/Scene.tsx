@@ -5,6 +5,7 @@ import type { AppState, ImportedAsset, ModelState, SketchPlane } from '../types'
 import { getWorldOffset } from '../store'
 import { buildExtrudeGeometry } from '../geometry/extrude'
 import { buildApexGeometry } from '../geometry/apex'
+import { synthesizeOrganic } from '../geometry/organic'
 import { PlaneIndicator } from './PlaneIndicator'
 
 // Lazy imports for loaders (tree-shaken in production)
@@ -32,15 +33,19 @@ interface ModelMeshProps {
 
 function ModelMesh({ model, worldOffset, isActive }: ModelMeshProps) {
   const geometry = useMemo<THREE.BufferGeometry | null>(() => {
-    if (!model.isClosed || model.vertices.length < 3) return null
     try {
+      if (model.shapeMode === 'organic') {
+        if (model.contourStrokes.length === 0) return null
+        return synthesizeOrganic(model.contourStrokes)
+      }
+      if (!model.isClosed || model.vertices.length < 3) return null
       return model.shapeMode === 'extrude'
         ? buildExtrudeGeometry(model.vertices, model.depth)
         : buildApexGeometry(model.vertices, model.height, model.apexAnchor)
     } catch {
       return null
     }
-  }, [model.vertices, model.isClosed, model.shapeMode, model.depth, model.height, model.apexAnchor])
+  }, [model.vertices, model.isClosed, model.shapeMode, model.depth, model.height, model.apexAnchor, model.contourStrokes])
 
   useEffect(() => {
     return () => { geometry?.dispose() }
@@ -48,33 +53,38 @@ function ModelMesh({ model, worldOffset, isActive }: ModelMeshProps) {
 
   if (!geometry) return null
 
-  // World position (always in world XY/Z space, independent of plane)
   const pos: [number, number, number] = [
     worldOffset.x / GRID,
     worldOffset.y / GRID,
     worldOffset.z,
   ]
 
-  const planeRot = PLANE_ROTATION[model.plane ?? 'XY']
+  // Organic geometry is already synthesized in 3D; no plane rotation needed.
+  const planeRot = model.shapeMode === 'organic' ? ([0, 0, 0] as [number, number, number]) : PLANE_ROTATION[model.plane ?? 'XY']
 
-  return (
-    <group position={pos}>
-      <group rotation={planeRot}>
-        {/* Solid */}
-        <mesh geometry={geometry}>
+  // Build mirror scale variants
+  const mirrorAxis   = model.mirrorAxis ?? 'none'
+  const mirrorScales: Array<[number, number, number]> = []
+  if (mirrorAxis === 'x' || mirrorAxis === 'xy')  mirrorScales.push([-1,  1, 1])
+  if (mirrorAxis === 'y' || mirrorAxis === 'xy')  mirrorScales.push([ 1, -1, 1])
+  if (mirrorAxis === 'xy')                        mirrorScales.push([-1, -1, 1])
+
+  function MeshContent({ opacity, emissiveIntensity }: { opacity: number; emissiveIntensity: number }) {
+    return (
+      <>
+        <mesh geometry={geometry!}>
           <meshStandardMaterial
             color={model.color}
             side={THREE.DoubleSide}
             roughness={0.28}
             metalness={0.15}
-            transparent={model.opacity < 1}
-            opacity={model.opacity}
+            transparent={opacity < 1}
+            opacity={opacity}
             emissive={model.color}
-            emissiveIntensity={isActive ? 0.055 : 0}
+            emissiveIntensity={emissiveIntensity}
           />
         </mesh>
-        {/* Wireframe */}
-        <mesh geometry={geometry}>
+        <mesh geometry={geometry!}>
           <meshBasicMaterial
             color={model.color}
             wireframe
@@ -82,7 +92,22 @@ function ModelMesh({ model, worldOffset, isActive }: ModelMeshProps) {
             opacity={isActive ? 0.26 : 0.09}
           />
         </mesh>
+      </>
+    )
+  }
+
+  return (
+    <group position={pos}>
+      {/* Primary instance */}
+      <group rotation={planeRot}>
+        <MeshContent opacity={model.opacity} emissiveIntensity={isActive ? 0.055 : 0} />
       </group>
+      {/* Mirror instances */}
+      {mirrorScales.map((scale, i) => (
+        <group key={i} rotation={planeRot} scale={scale}>
+          <MeshContent opacity={model.opacity * 0.7} emissiveIntensity={0} />
+        </group>
+      ))}
     </group>
   )
 }

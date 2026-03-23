@@ -4,6 +4,7 @@ import type { StoreAction } from '../store'
 import { getActiveModel, getWorldOffset, getSamePlaneModels } from '../store'
 import { useCanvas } from '../hooks/useCanvas'
 import { PLANE_COLORS, PLANE_AXES } from '../types'
+import { ToolBar } from './ToolBar'
 
 const GRID        = 20
 const CANVAS_SIZE = 600
@@ -75,9 +76,10 @@ interface Props {
 
 export function SketchPanel({ state, dispatch, className }: Props) {
   const canvasRef   = useRef<HTMLCanvasElement>(null)
+  const overlayRef  = useRef<HTMLCanvasElement>(null)
   const activeModel = getActiveModel(state)
 
-  useCanvas({ canvasRef, activeModel, dispatch })
+  useCanvas({ canvasRef, overlayRef, state, dispatch })
 
   const planeColor = PLANE_COLORS[state.activePlane]
   const [axisH, axisV] = PLANE_AXES[state.activePlane]
@@ -315,20 +317,43 @@ export function SketchPanel({ state, dispatch, className }: Props) {
       </div>
 
       {/* Canvas area */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', overflow: 'hidden', background: 'var(--c-base)' }}>
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_SIZE}
-          height={CANVAS_SIZE}
-          style={{
-            cursor: activeModel?.locked ? 'not-allowed' : 'crosshair',
-            maxWidth: '100%',
-            maxHeight: '100%',
-            display: 'block',
-            boxShadow: `0 2px 16px rgba(0,0,0,0.5), 0 0 0 2px ${planeColor}44`,
-          }}
-          aria-label="Drawing canvas — click to place vertices"
-        />
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: 'var(--c-base)' }}>
+        {/* Toolbar strip */}
+        <ToolBar state={state} dispatch={dispatch} />
+
+        {/* Canvas wrapper — centered with padding */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', overflow: 'hidden' }}>
+          <div style={{ position: 'relative', lineHeight: 0 }}>
+            <canvas
+              ref={canvasRef}
+              width={CANVAS_SIZE}
+              height={CANVAS_SIZE}
+              style={{
+                cursor: activeModel?.locked ? 'not-allowed' : 'crosshair',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                display: 'block',
+                boxShadow: `0 2px 16px rgba(0,0,0,0.5), 0 0 0 2px ${planeColor}44`,
+              }}
+              aria-label="Drawing canvas — click to place vertices"
+            />
+            {/* Overlay canvas for live drawing feedback */}
+            <canvas
+              ref={overlayRef}
+              width={CANVAS_SIZE}
+              height={CANVAS_SIZE}
+              style={{
+                position:      'absolute',
+                inset:         0,
+                pointerEvents: 'none',
+                maxWidth:      '100%',
+                maxHeight:     '100%',
+                display:       'block',
+              }}
+              aria-hidden="true"
+            />
+          </div>
+        </div>
       </div>
     </div>
   )
