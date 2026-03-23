@@ -2,35 +2,35 @@
 
 /* ── Design tokens ──────────────────────────────────────────── */
 :root {
-  /* Background scale — warm charcoal */
-  --c-base:       #0D0C0A;
-  --c-surface:    #141310;
-  --c-raised:     #1C1A17;
-  --c-hover:      #222018;
+  /* Background scale — warm studio / atelier */
+  --c-base:       #EDE8DF;   /* drafting table surface */
+  --c-surface:    #E4DFD6;   /* panel faces */
+  --c-raised:     #DAD5CC;   /* raised elements, inputs */
+  --c-hover:      #D0CBC2;   /* hover tint */
 
   /* Borders */
-  --c-border:     #262420;
-  --c-border-mid: #343028;
+  --c-border:     #C4BEB6;
+  --c-border-mid: #A8A29A;
 
   /* Text */
-  --c-txt-1: #EDEAE2;
-  --c-txt-2: #857F75;
-  --c-txt-3: #4C4840;
+  --c-txt-1: #1C1916;   /* warm near-black */
+  --c-txt-2: #4A4540;   /* medium warm gray */
+  --c-txt-3: #8A8480;   /* muted warm gray */
 
   /* Accent — warm orange (XY plane) */
-  --c-accent:    #E85820;
-  --c-accent-hi: #FF7340;
-  --c-accent-lo: #1C0D05;
+  --c-accent:    #D94F14;
+  --c-accent-hi: #F06030;
+  --c-accent-lo: rgba(217, 79, 20, 0.10);
 
   /* Plane tints */
-  --c-plane-xy:  #E85820;
-  --c-plane-xz:  #4ECBD4;
-  --c-plane-yz:  #4ED48A;
+  --c-plane-xy:  #D94F14;
+  --c-plane-xz:  #2AACB8;
+  --c-plane-yz:  #28A85C;
 
   /* Canvas — drafting paper */
-  --c-paper:      #EDE9E1;
-  --c-paper-grid: #D5D1C8;
-  --c-paper-axis: #B4B0A8;
+  --c-paper:      #F4F0E8;
+  --c-paper-grid: #DDD9D0;
+  --c-paper-axis: #C4C0B8;
 
   /* 3D viewport mesh */
   --c-mesh:      #4E86D4;
@@ -137,9 +137,10 @@ input.slider-lg::-moz-range-thumb {
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 3px; }
-::-webkit-scrollbar-track { background: var(--c-surface); }
-::-webkit-scrollbar-thumb { background: var(--c-border-mid); border-radius: 2px; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-border-mid); }
 
 /* ── Keyframes ──────────────────────────────────────────────── */
 @keyframes pulse-live {

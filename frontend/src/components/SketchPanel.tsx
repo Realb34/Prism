@@ -94,11 +94,11 @@ export function SketchPanel({ state, dispatch, className }: Props) {
     const H = canvas.height
 
     // ── Background ──
-    ctx.fillStyle = '#EDE9E1'
+    ctx.fillStyle = '#F4F0E8'
     ctx.fillRect(0, 0, W, H)
 
     // ── Grid ──
-    ctx.strokeStyle = '#D5D1C8'
+    ctx.strokeStyle = '#E0DCD4'
     ctx.lineWidth   = 0.5
     for (let x = W / 2 % GRID; x <= W; x += GRID) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke()
@@ -137,6 +137,38 @@ export function SketchPanel({ state, dispatch, className }: Props) {
       const wo = getWorldOffset(state, m.id)
       const [ox, oy] = worldOffsetToPx(wo.x, wo.y)
       drawGhost(ctx, m, ox, oy, W)
+    }
+
+    // ── Contour strokes (for current plane) ──
+    if (activeModel && activeModel.contourStrokes.length > 0) {
+      const planeStrokes = activeModel.contourStrokes.filter(s => s.plane === state.activePlane)
+      for (const stroke of planeStrokes) {
+        if (stroke.points.length < 2) continue
+        const [r, g, b] = hexToRgb(PLANE_COLORS[stroke.plane])
+        const cpts = stroke.points.map(v => toCanvas(v, W))
+        ctx.strokeStyle = `rgba(${r},${g},${b},0.55)`
+        ctx.lineWidth   = 1.5
+        ctx.lineJoin    = 'round'
+        ctx.lineCap     = 'round'
+        ctx.setLineDash([5, 4])
+        ctx.beginPath()
+        ctx.moveTo(cpts[0][0], cpts[0][1])
+        for (let i = 1; i < cpts.length; i++) ctx.lineTo(cpts[i][0], cpts[i][1])
+        ctx.stroke()
+        ctx.setLineDash([])
+        // Dot each endpoint
+        ctx.fillStyle = `rgba(${r},${g},${b},0.7)`
+        ctx.beginPath(); ctx.arc(cpts[0][0], cpts[0][1], 3, 0, Math.PI * 2); ctx.fill()
+        ctx.beginPath(); ctx.arc(cpts[cpts.length-1][0], cpts[cpts.length-1][1], 3, 0, Math.PI * 2); ctx.fill()
+      }
+      // If on a different plane, show a count indicator
+      const otherStrokes = activeModel.contourStrokes.filter(s => s.plane !== state.activePlane)
+      if (otherStrokes.length > 0) {
+        ctx.fillStyle = 'rgba(0,0,0,0.28)'
+        ctx.font      = `9px 'Syne', system-ui`
+        ctx.textAlign = 'right'
+        ctx.fillText(`+${otherStrokes.length} contour${otherStrokes.length > 1 ? 's' : ''} on other plane${otherStrokes.length > 1 ? 's' : ''}`, W - 12, H - 13)
+      }
     }
 
     // ── Active model ──

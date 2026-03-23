@@ -91,9 +91,9 @@ export const MODEL_COLORS: readonly string[] = [
 
 // ── Plane accent colors ──────────────────────────────────────
 export const PLANE_COLORS: Record<SketchPlane, string> = {
-  XY: '#E85820',
-  XZ: '#4ECBD4',
-  YZ: '#4ED48A',
+  XY: '#D94F14',
+  XZ: '#2AACB8',
+  YZ: '#28A85C',
 }
 
 // ── Plane axis labels (horizontal, vertical) ─────────────────

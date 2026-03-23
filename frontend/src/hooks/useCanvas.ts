@@ -290,9 +290,9 @@ export function useCanvas({ canvasRef, overlayRef, state, dispatch }: UseCanvasO
           isDrawingRef.current = false
           const pts = freehandRef.current
           if (pts.length >= 3) {
-            const smoothed = strokeToPolygon(pts, false, 2)
+            const smoothed = strokeToPolygon(pts, true, 3)
             if (smoothed.length >= 3) {
-              dispatch({ type: 'PATCH_MODEL', id: model.id, patch: { vertices: smoothed, isClosed: false } })
+              dispatch({ type: 'PATCH_MODEL', id: model.id, patch: { vertices: smoothed, isClosed: true } })
             }
           }
           freehandRef.current = []
